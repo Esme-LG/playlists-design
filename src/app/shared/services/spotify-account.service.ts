@@ -1,14 +1,13 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { map, Observable } from 'rxjs';
+import { map, Observable, throwError, catchError, retry } from 'rxjs';
 import { environment } from 'src/environments/environment';
 
 
 const httpOptions = {
   headers: new HttpHeaders({
     'Authorization': 'Basic ' + btoa(environment.client_id + ':' + environment.client_secret),
-    'Content-Type': 'application/x-www-form-urlencoded'
   })
 };
 
@@ -40,7 +39,7 @@ export class SpotifyAccountService {
 
   getAuthorizePage(): string{
     let params = new HttpParams();
-    let options : { [ key:string ]: string } = {
+    let options: { [ key:string ]: string } = {
       response_type:'code',
       client_id: environment.client_id,
       scope: this.scope,
@@ -51,19 +50,25 @@ export class SpotifyAccountService {
     for (let key in options)
       params = params.set(key, options[key]);
 
+      localStorage.setItem('state', this.state); // Save the state, it will be used later
+
     return `https://accounts.spotify.com/authorize?${params.toString()}`;
   }
 
-  requestAccessToken(data: any): Observable<any>{
-    return this.http.post(`https://accounts.spotify.com/api/token`,
-            {code: data.code, redirect_uri: this.redirect_uri, grant_type: 'authorization_code'},
-            httpOptions)
-            .pipe(
-              map(() => {
+  requestAccessToken(code: string): Observable<any>{
+    let params = new HttpParams();
+    const options: { [ key:string ]: string } = {
+      client_id: environment.client_id,
+      client_secret: environment.client_secret,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: this.redirect_uri,
+    };
 
-              })
-            );
+    for (let key in options)
+      params = params.set(key, options[key]);
+
+    return this.http.post(`https://accounts.spotify.com/api/token`, params, httpOptions);
   }
 
-  // logout()
 }
